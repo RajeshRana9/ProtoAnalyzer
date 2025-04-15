@@ -37,7 +37,7 @@ def update(sequence):
 # EMSFold APP (Prediction)
 # ========================
 def emsfold_app():
-    st.sidebar.title('PRo-TOOLS')
+    st.sidebar.title('Input-Options')
     st.sidebar.write("")
     
     # Sequence input
