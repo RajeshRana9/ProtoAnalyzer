@@ -201,7 +201,7 @@ def ranaatom_app():
 st.markdown(''' 
     <div style="text-align: center;">
         <h1 style="font-family: 'Dustosmo Roman', 'Times New Roman', serif; color:lightyellow;">
-            ProtoAnalyzer
+            PRo-EDICTOR
         </h1>
         <p>
             <em>A Streamlit <strong>Component</strong> for creating Speck molecular structures within Streamlit Web app.</em>
