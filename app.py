@@ -200,7 +200,7 @@ def ranaatom_app():
 # ========================
 st.markdown(''' 
     <div style="text-align: center;">
-        <h1 style="font-family: 'Dustosmo Roman', 'Times New Roman', serif; color:lightyellow;">
+        <h1 style="font-family: 'Dustosmo Roman', 'Times New Roman', serif; color:purple;">
             PRo-EDICTOR
         </h1>
         <p>
