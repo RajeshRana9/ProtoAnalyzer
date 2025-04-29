@@ -204,7 +204,7 @@ st.markdown('''
             PRo-EDICTOR
         </h1>
         <p>
-            <em>Developed by</em> <strong>Rajesh Rana </strong> </em> Department of Bioinformatics, CPGS, OUAT</em>
+            <em>Developed by</em> <strong>Rajesh Rana </strong> <em> Department of Bioinformatics, CPGS, OUAT</em>
         </p>
     </div>
     ''', unsafe_allow_html=True) 
