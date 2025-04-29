@@ -204,7 +204,7 @@ st.markdown('''
             PRo-EDICTOR
         </h1>
         <p>
-            <em>A Streamlit <strong>Component</strong> for creating Speck molecular structures within Streamlit Web app.</em>
+            <em>Developed BY <strong>Rajesh Rana </strong> Department of Bioinformatics, CPGS, OUAT</em>
         </p>
     </div>
     ''', unsafe_allow_html=True) 
