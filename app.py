@@ -6,27 +6,26 @@ import biotite.structure.io as bsio
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 import pandas as pd
 from collections import defaultdict
-import re
 
-# Set page config
+# Page setup
 st.set_page_config(layout='wide')
 
-# Initialize session state
+# Session state initialization
 if 'pdb_string' not in st.session_state:
     st.session_state.pdb_string = None
 if 'b_value' not in st.session_state:
     st.session_state.b_value = None
 if 'protein_name' not in st.session_state:
     st.session_state.protein_name = "Predicted Protein"
+if 'sequence' not in st.session_state:
+    st.session_state.sequence = ""
 
-# ========================
-# SHARED FUNCTIONS
-# ========================
+# Prediction function using ESMFold
 def update(sequence):
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
     response = requests.post('https://api.esmatlas.com/foldSequence/v1/pdb/', 
-                           headers=headers, 
-                           data=sequence)
+                             headers=headers, 
+                             data=sequence)
     st.session_state.pdb_string = response.content.decode('utf-8')
     with open('predicted.pdb', 'w') as f:
         f.write(st.session_state.pdb_string)
@@ -34,38 +33,33 @@ def update(sequence):
     st.session_state.b_value = round(struct.b_factor.mean(), 4)
 
 # ========================
-# EMSFold APP (Prediction)
+# Predictor Tab
 # ========================
 def emsfold_app():
-    st.sidebar.title('Input-Options')
-    st.sidebar.write("")
-    
-    # Sequence input
+    st.sidebar.title('Input Options')
+
     DEFAULT_SEQ = "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAEDLQASALSLSSSTSTWPEGLDATARAPPALVVTANIGQAGGSSSRQFRQRALGTSDSPVLFIHCPGAAGTAQGLEYRGRRVTTELVWEEVDSSPQPQGSESLPAQPPAQPAPQPEPQQAREPSPEVSCCGLWPRRPQRSQN"
-    txt = st.sidebar.text_area('Input sequence', DEFAULT_SEQ, height=275)
-    
-    # Protein name input
+    st.session_state.sequence = st.sidebar.text_area('Input sequence', DEFAULT_SEQ, height=275)
+
     custom_name = st.sidebar.text_input("Protein Name", st.session_state.protein_name)
     st.session_state.protein_name = custom_name
 
     if st.sidebar.button('⏳ Predict Structure'):
         with st.spinner('Predicting structure...'):
-            update(txt)
+            update(st.session_state.sequence)
             st.success("Prediction complete! Switch to the Analyzer tab to view details.")
-            st.session_state.pdb_string = st.session_state.pdb_string  # Ensure persistence
-    
-    # Visualization settings
+
     st.sidebar.title('Display Options')
     background_color = st.sidebar.color_picker("Background", "#000000")
     show_labels = st.sidebar.checkbox("Show Residue Labels", False)
 
     if st.session_state.pdb_string:
         col1, col2 = st.columns([2, 1])
-        
+
         with col1:
             st.subheader(f'🧬 {st.session_state.protein_name} Structure')
             st.caption(f"Confidence score: {st.session_state.b_value}")
-            
+
             pdbview = py3Dmol.view()
             pdbview.addModel(st.session_state.pdb_string, 'pdb')
             pdbview.setStyle({'cartoon': {'color': 'spectrum'}})
@@ -75,36 +69,37 @@ def emsfold_app():
             pdbview.zoomTo()
             pdbview.spin(True)
             showmol(pdbview, height=500, width=800)
-            
+
             st.download_button(
                 label="📥 Download PDB",
                 data=st.session_state.pdb_string,
                 file_name=f'{st.session_state.protein_name.replace(" ", "_")}.pdb',
                 mime='text/plain'
             )
-        
+
         with col2:
             st.subheader('📊 Confidence Scores')
             color_table = """
             | Color | plDDT Score | Confidence Level |
-            |-------|------------|------------------|
-            | 🔵  | 90-100 | Very High |
-            | 🟢  | 70-90 | High |
-            | 🟡  | 50-70 | Medium |
-            | 🔴  | <50 | Low |
+            |-------|-------------|------------------|
+            | 🔵     | 90–100       | Very High        |
+            | 🟢     | 70–90        | High             |
+            | 🟡     | 50–70        | Medium           |
+            | 🔴     | <50          | Low              |
             """
             st.markdown(color_table)
-            
+
             st.subheader('🧪 Protein Properties')
-            protein_seq = ProteinAnalysis(txt)
-            hydrophobic = sum(txt.count(res) for res in 'AILMFWYV')
+            seq = st.session_state.sequence
+            protein_seq = ProteinAnalysis(seq)
+            hydrophobic = sum(seq.count(res) for res in 'AILMFWYV')
             data = {
                 "Property": ["Length", "MW (Da)", "Hydrophobicity", "Net Charge", "Avg Confidence"],
                 "Value": [
-                    len(txt),
+                    len(seq),
                     f"{protein_seq.molecular_weight()/1000:.1f} kDa",
-                    f"{hydrophobic/len(txt)*100:.1f}%",
-                    sum(txt.count(res) for res in 'KRH') - sum(txt.count(res) for res in 'DE'),
+                    f"{hydrophobic/len(seq)*100:.1f}%",
+                    sum(seq.count(res) for res in 'KRH') - sum(seq.count(res) for res in 'DE'),
                     st.session_state.b_value
                 ]
             }
@@ -113,41 +108,34 @@ def emsfold_app():
         st.info("💡 Enter a protein sequence and click 'Predict Structure'")
 
 # ========================
-# ranaatom APP (Analysis)
+# Analyzer Tab
 # ========================
 def ranaatom_app():
     st.title("🔍 PDB Analysis Toolkit")
-    
+
     if not st.session_state.pdb_string:
         st.warning("No structure available. Please predict a structure first in the Predictor tab.")
         return
-    
+
     st.write(f"Analyzing: {st.session_state.protein_name}")
-    
-    # Advanced visualization controls
+
     st.sidebar.title('Analysis Settings')
-    style = st.sidebar.selectbox("Style", 
-                               ["cartoon", "sphere", "stick", "surface"],
-                               index=0)
-    color_scheme = st.sidebar.selectbox("Color Scheme",
-                                      ["spectrum", "chain", "residue"],
-                                      index=0)
+    style = st.sidebar.selectbox("Style", ["cartoon", "sphere", "stick", "surface"], index=0)
+    color_scheme = st.sidebar.selectbox("Color Scheme", ["spectrum", "chain", "residue"], index=0)
     show_labels = st.sidebar.checkbox("Show Atom Labels", False)
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.subheader(f"🔬 {st.session_state.protein_name} Structure")
-        
-        # Display basic info
+
         atom_lines = [line for line in st.session_state.pdb_string.split('\n') if line.startswith("ATOM")]
         num_atoms = len(atom_lines)
         st.caption(f"{num_atoms:,} atoms | {len(set(line[21] for line in atom_lines))} chains")
-        
-        # 3D Visualization
+
         view = py3Dmol.view(width=600, height=400)
         view.addModel(st.session_state.pdb_string, "pdb")
-        
+
         if style == "cartoon":
             view.setStyle({'cartoon': {'color': color_scheme}})
         elif style == "sphere":
@@ -156,47 +144,50 @@ def ranaatom_app():
             view.setStyle({'stick': {'colorscheme': color_scheme}})
         elif style == "surface":
             view.addSurface(py3Dmol.VDW, {'opacity':0.7, 'color':'white'})
-        
+
         if show_labels:
             view.addResLabels()
-            
+
         view.zoomTo()
         showmol(view, height=400)
-        
+
         st.download_button(
             label="⬇️ Download PDB",
             data=st.session_state.pdb_string,
             file_name=f'{st.session_state.protein_name.replace(" ", "_")}.pdb',
             mime='text/plain'
         )
-    
+
     with col2:
-        st.subheader("Structure Analysis")
-        
-        # Secondary structure analysis
-        helix_count = sum(1 for line in st.session_state.pdb_string.split('\n') if line.startswith("HELIX"))
-        sheet_count = sum(1 for line in st.session_state.pdb_string.split('\n') if line.startswith("SHEET"))
-        
-        ss_data = pd.DataFrame({
-            'Type': ['Helix', 'Sheet', 'Coil'],
-            'Count': [helix_count, sheet_count, num_atoms - (helix_count + sheet_count)]
-        })
-        
-        st.subheader("Secondary Structure")
-        st.bar_chart(ss_data.set_index('Type'))
-        
-        # Residue type distribution
+        st.subheader("⚗️ Residue Property Distribution")
+        seq = st.session_state.get("sequence", "").upper()
+
+        categories = {
+            "Hydrophobic": "AILMFWYV",
+            "Polar": "STNQ",
+            "Positively Charged": "KRH",
+            "Negatively Charged": "DE",
+            "Special Cases": "CGP"
+        }
+
+        prop_counts = {
+            key: sum(seq.count(res) for res in residues)
+            for key, residues in categories.items()
+        }
+
+        prop_df = pd.DataFrame.from_dict(prop_counts, orient='index', columns=['Count'])
+        st.bar_chart(prop_df)
+
+        st.subheader("Residue Type Distribution")
         res_counts = defaultdict(int)
         for line in atom_lines:
             res_name = line[17:20].strip()
             res_counts[res_name] += 1
-        
         res_df = pd.DataFrame.from_dict(res_counts, orient='index', columns=['Count'])
-        st.subheader("Residue Distribution")
         st.bar_chart(res_df)
 
 # ========================
-# MAIN APP
+# Main App Layout
 # ========================
 st.markdown(''' 
     <div style="text-align: center;">
@@ -207,9 +198,11 @@ st.markdown('''
             <em>Developed by </em> <strong>Rajesh Rana </strong> <em>  Department of BIOINFORMATICS, CPGS, OUAT</em>
         </p>
     </div>
-    ''', unsafe_allow_html=True) 
+    ''', unsafe_allow_html=True)
+
 tab1, tab2 = st.tabs(["🧬 Predictor", "🔍 Analyzer"])
 with tab1:
     emsfold_app()
 with tab2:
     ranaatom_app()
+    
